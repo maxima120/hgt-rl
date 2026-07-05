@@ -13,3 +13,4 @@ delayed-peg/nq-quarto_files/
 delayed-peg/v3/data/before-v6-fix.7z
 delayed-peg/v3-new/data/
 **/*.npz
+**/*.zip
