@@ -15,3 +15,5 @@ delayed-peg/v3-new/data/
 **/*.npz
 **/*.zip
 **/*.json
+
+**/*.joblib
