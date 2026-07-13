@@ -17,5 +17,4 @@ delayed-peg/v3-new/data/
 **/*.json
 
 **/*.joblib
-**/*.cpython-311..pyc
-**/*.cpython-311..pyc
+**/*.pyc
