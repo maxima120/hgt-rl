@@ -55,8 +55,8 @@ from common import load_manifest, _expanding_z, _welford_check   # shared with s
 # ---------------------------------------------------------------- CONFIG
 MODE = "replay"                        # "replay" | "serve"
 SC_TAG = "NOTICK-9-12am_3s"            # single label; identifies the fork end-to-end
-MODEL_PATH = f"stage-5/model_{SC_TAG}.joblib"
-PRED_PATH = f"stage-5/pred_{SC_TAG}.pqt"     # replay reference only
+MODEL_PATH = f"../stage-5/model_{SC_TAG}.joblib"
+PRED_PATH = f"../stage-5/pred_{SC_TAG}.pqt"     # replay reference only
 REPLAY_FROM = "2026-01-01"             # None = full history
 
 WORKER_ID = 1                          # set by core when spawned; port math below
@@ -340,9 +340,9 @@ class DerivedSignals:
 def load_research_frame(c):
     lo = pd.Timestamp(c["session_start"]).time()
     hi = pd.Timestamp(c["session_end"]).time()
-    src = pd.read_parquet(c["source_file"])
+    src = pd.read_parquet('../' + c["source_file"])
     src = src[(src["timestamp"].dt.time >= lo) & (src["timestamp"].dt.time < hi)]
-    raw1 = pd.read_parquet(c["raw_file"])
+    raw1 = pd.read_parquet('../' + c["raw_file"])
     raw1 = raw1[(raw1["timestamp"].dt.time >= lo) & (raw1["timestamp"].dt.time < hi)]
     raw1 = raw1.rename(columns={"Open": "rawOpen", "High": "rawHigh",
                                 "Low": "rawLow", "Last": "rawLast"})
