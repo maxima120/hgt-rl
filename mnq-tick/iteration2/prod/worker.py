@@ -136,24 +136,26 @@ def worker_feature_names(c):
 
 
 # ---------------------------------------------------------------- primitives
-class Welford:                                                             # W2.4
-    __slots__ = ("k", "mean", "M2")
+class RunningZ:                                                            # W2.4
+    """Streaming form of common._expanding_z -- bit-identical by construction:
+    same csum/csq accumulation order, same mean/var expressions. Welford is more
+    stable but NOT bit-equal, and near-zero z (catastrophic cancellation in
+    x-mean) then differs by float32 ULPs, flipping LightGBM branches."""
+    __slots__ = ("k", "csum", "csq")
 
     def __init__(self):
-        self.k, self.mean, self.M2 = 0, 0.0, 0.0
+        self.k, self.csum, self.csq = 0, 0.0, 0.0
 
     def z_then_update(self, x):
-        z = 0.0
-        if self.k >= ZWARM and self.k > 1:
-            var = self.M2 / (self.k - 1)
-            if var > 0.0:
-                z = (x - self.mean) / np.sqrt(var)
-        self.k += 1
-        d = x - self.mean
-        self.mean += d / self.k
-        self.M2 += d * (x - self.mean)
+        k = self.k
+        mean = self.csum / k if k > 0 else 0.0
+        var = (self.csq - k * mean * mean) / (k - 1) if k > 1 else 0.0
+        std = np.sqrt(max(var, 0.0))
+        z = (x - mean) / std if (k >= ZWARM and std > 0.0) else 0.0
+        self.k = k + 1
+        self.csum += x
+        self.csq += x * x
         return z
-
 
 class SignTrack:                                                           # W2.3
     __slots__ = ("prev", "sign")
@@ -196,7 +198,7 @@ class Engine:
         self.last_self = None
         self.leg_start_jma = None
         nb = c["n_value"]
-        self.wf = [Welford() for _ in range(nb)]
+        self.wf = [RunningZ() for _ in range(nb)]
         self.ring = [np.zeros(nb), np.zeros(nb), np.zeros(nb)]
         self.last_self_event = False
 
