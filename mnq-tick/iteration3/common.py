@@ -80,7 +80,7 @@ class Featurizer:
                 bar_index=g["bar_index"].to_numpy(),
                 timestamp=g["timestamp"].to_numpy()))
 
-            self.augment_featurizer(bars)
+        self.augment_featurizer(bars)
 
     # public method
     def _selected(self, date_from, date_to):

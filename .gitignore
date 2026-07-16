@@ -18,3 +18,4 @@ delayed-peg/v3-new/data/
 
 **/*.joblib
 **/*.pyc
+**/.idea
