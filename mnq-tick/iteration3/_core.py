@@ -30,8 +30,8 @@ import zmq
 
 # ---------------------------------------------------------------- CONFIG
 PORT_BASE = 50120
-MODEL_DIR = "../stage-5"
-WORKER_SCRIPT = "worker.py"
+MODEL_DIR = "stage-5"
+WORKER_SCRIPT = "_worker.py"
 PYTHON = sys.executable
 LOG_DIR = "./logs"
 POLL_MS = 500                       # handshake poll / reap interval
@@ -83,8 +83,7 @@ def validate(wid, tag):
 
 def spawn(wid, tag, log):
     argv = [PYTHON, WORKER_SCRIPT, str(wid), tag, SERVICE_START]
-    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(argv) #, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     WORKERS[wid] = {"proc": proc, "tag": tag, "started": time.time()}
     log(f"SPAWN id={wid} tag={tag} pid={proc.pid} pull={PORT_BASE + wid} push={PORT_BASE + 100 + wid}")
     return proc

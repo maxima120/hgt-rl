@@ -71,7 +71,7 @@ WORKER_ID = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 SC_TAG = sys.argv[2] if len(sys.argv) > 2 else "mnq-TICK-9-12am_3s"
 SERVICE_START = sys.argv[3] if len(sys.argv) > 3 else datetime.now().strftime("%Y-%m-%d_%H-%M")
 
-MODEL_DIR = "../stage-5"
+MODEL_DIR = "stage-5"
 MODEL_PATH = f"{MODEL_DIR}/model_{SC_TAG}.joblib"
 LOG_DIR = "./logs"
 
@@ -99,10 +99,12 @@ def make_logger():
     path = os.path.join(LOG_DIR, f"worker_{WORKER_ID}_{SC_TAG}_{SERVICE_START}.log")
     fh = open(path, "a", buffering=1)
 
+    LOG_MONIKER = f'[W{WORKER_ID}]'
+    
     def log(msg):
         line = f"{datetime.now().isoformat(timespec='microseconds')}  {msg}"
         fh.write(line + "\n")
-        sys.stdout.write(line + "\n")
+        sys.stdout.write(f'{LOG_MONIKER} {line}\n')
         sys.stdout.flush()
     return log, path
 
