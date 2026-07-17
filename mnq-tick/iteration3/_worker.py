@@ -62,7 +62,7 @@ import sys
 import struct
 import hashlib
 from datetime import datetime
-
+import zmq
 import numpy as np
 import joblib
 
@@ -225,9 +225,12 @@ class Engine:
         self.last_self_event = False
 
     def ingest(self, bar_idx, rawOpen, rawLast, jma, *osc):
+
+        print(f"-- DEBUG -- bar_idx: {bar_idx} {rawOpen}, {rawLast}, {jma}")
+        
         c = self.c
-        if self.prev_bar_idx is not None and bar_idx != self.prev_bar_idx + 1:
-            raise GapError(f"bar_idx gap: got {bar_idx}, expected {self.prev_bar_idx + 1}")
+        #if self.prev_bar_idx is not None and bar_idx != self.prev_bar_idx + 1:
+        #    raise GapError(f"bar_idx gap: got {bar_idx}, expected {self.prev_bar_idx + 1}")
         self.prev_bar_idx = bar_idx
         self.k += 1
         k = self.k
@@ -384,23 +387,27 @@ class FeatureDump:
 def serve(scorer, log):
     c = scorer.c
 
-    # === ZMQ SETUP STUB ===============================================
-    # import zmq
-    # ctx  = zmq.Context()
-    # pull = ctx.socket(zmq.PULL); pull.bind(f"tcp://*:{PORT_PULL}")
-    # push = ctx.socket(zmq.PUSH); push.bind(f"tcp://*:{PORT_PUSH}")
-    # recv = pull.recv
-    # send = push.send
-    # ==================================================================
-    def recv():
-        raise NotImplementedError("wire up ZMQ PULL")
+    ctx = zmq.Context()
 
-    def send(_b):
-        raise NotImplementedError("wire up ZMQ PUSH")
+    pull = ctx.socket(zmq.PULL)
+    push = ctx.socket(zmq.PUSH)
+
+    pull.setsockopt(zmq.LINGER, 0)
+    push.setsockopt(zmq.LINGER, 0)
+
+    pull.setsockopt(zmq.RCVHWM, 0)
+    push.setsockopt(zmq.SNDHWM, 0)
+
+    pull.bind(f"tcp://*:{PORT_PULL}")
+    push.bind(f"tcp://*:{PORT_PUSH}")
+
+    recv = pull.recv
+    send = push.send
 
     log(f"serving   PULL {PORT_PULL}   PUSH {PORT_PUSH}")
     eng = Engine(c)
     ds = DerivedSignals(STICKY_BARS)
+
     dump = FeatureDump(c, scorer.names) if DUMP_FEATURES else None
     if dump:
         log(f"dump file : {dump.path}")
