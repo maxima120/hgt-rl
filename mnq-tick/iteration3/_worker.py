@@ -67,8 +67,8 @@ import numpy as np
 import joblib
 
 # ---------------------------------------------------------------- ARGV / CONFIG
-WORKER_ID = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-SC_TAG = sys.argv[2] if len(sys.argv) > 2 else "mnq-TICK-9-12am_3s"
+WORKER_ID = int(sys.argv[1]) # if len(sys.argv) > 1 else 1
+SC_TAG = sys.argv[2] # if len(sys.argv) > 2 else "mnq-TICK-9-12am_3s"
 SERVICE_START = sys.argv[3] if len(sys.argv) > 3 else datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 MODEL_DIR = "stage-5"
@@ -226,7 +226,7 @@ class Engine:
 
     def ingest(self, bar_idx, rawOpen, rawLast, jma, *osc):
 
-        print(f"-- DEBUG -- bar_idx: {bar_idx} {rawOpen}, {rawLast}, {jma}")
+        #print(f"-- DEBUG -- bar_idx: {bar_idx} {rawOpen}, {rawLast}, {jma}")
         
         c = self.c
         #if self.prev_bar_idx is not None and bar_idx != self.prev_bar_idx + 1:
