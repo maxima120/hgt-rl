@@ -1,6 +1,11 @@
 Experimenting with iter3.
 
-- remove bollinger bands
+changes in export:
+- removed adpVel (needs cfb), bollinger bands
+- rsx(15,open)->rsx(16,hlc)
+- vel(16,jma)->vel(16,hlc)
+
+
 - add 5th stream
     - RSX
     - VEL
