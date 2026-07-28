@@ -20,3 +20,4 @@ delayed-peg/v3-new/data/
 **/*.pyc
 **/.idea
 **/*.7z
+**/*.txt
