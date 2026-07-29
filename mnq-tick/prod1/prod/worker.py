@@ -71,11 +71,11 @@ WORKER_ID = int(sys.argv[1]) # if len(sys.argv) > 1 else 1
 SC_TAG = sys.argv[2] # if len(sys.argv) > 2 else "mnq-TICK-9-12am_3s"
 SERVICE_START = sys.argv[3] if len(sys.argv) > 3 else datetime.now().strftime("%Y-%m-%d_%H-%M")
 
-MODEL_DIR = "stage-5"
-MODEL_PATH = f"{MODEL_DIR}/model_{SC_TAG}.joblib"
+MODEL_DIR = "model"
+MODEL_PATH = f"{MODEL_DIR}/{SC_TAG}_model.joblib"
 LOG_DIR = "./logs"
 
-PORT_BASE = 50120
+PORT_BASE = 50100
 PORT_PULL = PORT_BASE + WORKER_ID              # worker RECEIVES bars here
 PORT_PUSH = PORT_BASE + 100 + WORKER_ID        # worker SENDS results here
 
@@ -132,7 +132,6 @@ def load_contract(model_path):
         "stream_cols": [s["column"] for s in man["streams"]],
         "self": man["self_stream"],
         "source_file": man["source_file"],
-        "raw_file": man["raw_file"],
     }
     c["classes"] = [(s, k) for s in c["stream_names"] for k in ("opp", "conf")] \
                    + [(c["self"], "all")]
@@ -326,15 +325,12 @@ class Scorer:
         log(f"WORKER {WORKER_ID}   tag={SC_TAG}   pid={os.getpid()}")
         log(f"model      : {MODEL_PATH}")
         log(f"file mtime : {mt.isoformat(timespec='seconds')}")
-        log(f"model tag  : {b.get('tag')}  valid_from={b.get('valid_from')}  "
-            f"train_end={b.get('train_end')}")
-        log(f"frame      : {c['frame']}s   session {c['session_start']}-{c['session_end']}"
-            f"   warmup {c['warmup_bars']}   value_warm {c['value_warm']}   n_tod {c['n_tod']}")
+        log(f"model tag  : {b.get('tag')}  valid_from={b.get('valid_from')}  train_end={b.get('train_end')}")
+        log(f"frame      : {c['frame']}s   session {c['session_start']}-{c['session_end']}  warmup {c['warmup_bars']}   value_warm {c['value_warm']}   n_tod {c['n_tod']}")
         log(f"streams    : {c['stream_names']}  (+ {c['self']})")
         log(f"features   : {self.n_feat}   hash {self.names_hash}")
-        log(f"trained on : source={c['source_file']}  raw={c['raw_file']}")
-        log(f"wire IN    : <i{c['n_floats']}f> {c['in_msg'].size}B  "
-            + ", ".join(c["wire_in_names"]))
+        log(f"trained on : source={c['source_file']}")
+        log(f"wire IN    : <i{c['n_floats']}f> {c['in_msg'].size}B  " + ", ".join(c["wire_in_names"]))
         log(f"             rawOpen/rawLast = RAW chart OHLC, NOT Heikin-Ashi")
         log(f"wire OUT   : <iffff> {OUT_MSG.size}B  bar_idx, p, p_cal, sticky, risk_consumed")
         log(f"ports      : PULL {PORT_PULL} (bars in)   PUSH {PORT_PUSH} (results out)")
@@ -342,8 +338,7 @@ class Scorer:
         log("=" * 66)
 
     def predict(self, X):
-        p = self.booster.predict(np.asarray(X, dtype=np.float32),
-                                 num_iteration=self.best_it)
+        p = self.booster.predict(np.asarray(X, dtype=np.float32), num_iteration=self.best_it)
         return p, np.interp(p, self.iso_x, self.iso_y)
 
 
@@ -370,8 +365,7 @@ class FeatureDump:
 
     def __init__(self, contract, names):
         os.makedirs(LOG_DIR, exist_ok=True)
-        self.path = os.path.join(
-            LOG_DIR, f"features_{WORKER_ID}_{SC_TAG}_{SERVICE_START}.csv")
+        self.path = os.path.join(LOG_DIR, f"features_{WORKER_ID}_{SC_TAG}_{SERVICE_START}.csv")
         new = not os.path.exists(self.path)
         self.fh = open(self.path, "a", buffering=1)
         if new:
@@ -409,8 +403,7 @@ def serve(scorer, log):
     ds = DerivedSignals(STICKY_BARS)
 
     dump = FeatureDump(c, scorer.names) if DUMP_FEATURES else None
-    if dump:
-        log(f"dump file : {dump.path}")
+    if dump: log(f"dump file : {dump.path}")
     n = 0
 
     while True:
@@ -431,12 +424,10 @@ def serve(scorer, log):
         pc = float(p_cal[0])
         sticky, gauge = ds.update(pc, eng.last_self_event)
         send(OUT_MSG.pack(bar_idx, float(p[0]), pc, sticky, gauge))
-        if dump:
-            dump.write(wire, eng.k + 1, feats)
+        if dump: dump.write(wire, eng.k + 1, feats)
         n += 1
-        if n % 200 == 0:
-            log(f"bars={n}  last bar_idx={bar_idx}  p_cal={pc:.6f}  "
-                f"sticky={sticky:.6f}  gauge={gauge:.4f}")
+        if n % 100 == 0:
+            log(f"bars={n:>6} last bar_idx={bar_idx} p_cal={pc:.6f} sticky={sticky:.6f} gauge={gauge:.4f}")
 
 
 # ---------------------------------------------------------------- main

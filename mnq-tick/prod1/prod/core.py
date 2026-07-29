@@ -29,9 +29,9 @@ from datetime import datetime
 import zmq
 
 # ---------------------------------------------------------------- CONFIG
-PORT_BASE = 50120
+PORT_BASE = 50100
 MODEL_DIR = "model"
-WORKER_SCRIPT = "_worker.py"
+WORKER_SCRIPT = "worker.py"
 PYTHON = sys.executable
 LOG_DIR = "./logs"
 POLL_MS = 500                       # handshake poll / reap interval
@@ -41,6 +41,7 @@ SERVICE_START = datetime.now().strftime("%Y-%m-%d_%H-%M")
 WORKERS = {}                        # id -> dict(proc, tag, started)
 RUNNING = True
 
+# ---------------------------------------------------------------- 
 
 def make_logger():
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -71,7 +72,7 @@ def parse_handshake(text):
 
 
 def model_path(tag):
-    return os.path.join(MODEL_DIR, f"model_{tag}.joblib")
+    return os.path.join(MODEL_DIR, f"{tag}_model.joblib")
 
 
 def validate(wid, tag):
@@ -80,6 +81,7 @@ def validate(wid, tag):
         raise ValueError(f"no model file for tag {tag!r}: {p}")
     return p
 
+# ---------------------------------------------------------------- 
 
 def spawn(wid, tag, log):
     argv = [PYTHON, WORKER_SCRIPT, str(wid), tag, SERVICE_START]
@@ -110,8 +112,7 @@ def reap(log):
         rc = w["proc"].poll()
         if rc is not None:
             up = time.time() - w["started"]
-            log(f"EXIT id={wid} tag={w['tag']} pid={w['proc'].pid} rc={rc} "
-                f"uptime={up:.1f}s -- see worker log")
+            log(f"EXIT id={wid} tag={w['tag']} pid={w['proc'].pid} rc={rc} uptime={up:.1f}s -- see worker log")
             WORKERS.pop(wid, None)
 
 
@@ -138,20 +139,27 @@ def shutdown(log):
     for wid in list(WORKERS.keys()):
         kill(wid, log, why="(service shutdown)")
 
+# ---------------------------------------------------------------- 
 
 def main():
+
+    global RUNNING
+    RUNNING = True
+
     log, log_path = make_logger()
     log("=" * 66)
     log(f"CORE up   pid={os.getpid()}   service_start={SERVICE_START}")
     log(f"router    tcp://*:{PORT_BASE}   handshake 'ID,TAG'")
     log(f"ports     worker PULL {PORT_BASE}+ID   worker PUSH {PORT_BASE + 100}+ID")
-    log(f"models    {MODEL_DIR}/model_<TAG>.joblib")
+    log(f"models    {MODEL_DIR}/<TAG>_model.joblib")
     log(f"log       {log_path}")
     log("=" * 66)
 
     def on_sig(signum, _frame):
-        log(f"SIGNAL {signum} -- shutting down")
-        shutdown(log)
+        global RUNNING
+        log(f"SIGNAL {signum} -- shutdown requested")
+        RUNNING = False
+        
     signal.signal(signal.SIGTERM, on_sig)
     signal.signal(signal.SIGINT, on_sig)
 
@@ -173,24 +181,28 @@ def main():
     def reply(identity, text):
         router.send_multipart([identity, b"", text.encode("ascii")])
     # ==================================================================
-    
-    #def poll_handshake(_timeout_ms):
-    #    raise NotImplementedError("wire up ZMQ ROUTER")
 
-    #def reply(_identity, _text):
-    #    raise NotImplementedError("wire up ZMQ ROUTER")
+    try:
+        while RUNNING:
+            identity, text = poll_handshake(POLL_MS)
+            if identity is not None:
+                log(f"HANDSHAKE {text!r}")
+                r = handle(text, log)
+                reply(identity, r)
+                log(f"REPLY {r}")
+            reap(log)
+            
+    except KeyboardInterrupt:
+        log("KeyboardInterrupt -- shutdown requested")
 
-    while RUNNING:
-        identity, text = poll_handshake(POLL_MS)
-        if identity is not None:
-            log(f"HANDSHAKE {text!r}")
-            r = handle(text, log)
-            reply(identity, r)
-            log(f"REPLY {r}")
-        reap(log)
+    finally:
+        shutdown(log)
+        poller.unregister(router)
+        router.close(linger=0)
+        ctx.term()
+        log("CORE down")
 
-    log("CORE down")
-
+# ---------------------------------------------------------------- main
 
 if __name__ == "__main__":
     main()
